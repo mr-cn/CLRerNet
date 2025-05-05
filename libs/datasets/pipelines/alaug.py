@@ -14,7 +14,7 @@ from mmdet.registry import TRANSFORMS
 
 @TRANSFORMS.register_module()
 class Alaug(object):
-    def __init__(self, transforms):
+    def __init__(self, transforms, cut_unsorted=False):
         assert isinstance(transforms, collections.abc.Sequence)
         # init as None
         self.__augmentor = None
@@ -22,6 +22,7 @@ class Alaug(object):
         self.transforms = []
         self.bbox_params = None
         self.keypoint_params = None
+        self.cut_unsorted = cut_unsorted
 
         for transform in transforms:
             if isinstance(transform, dict):
@@ -83,6 +84,20 @@ class Alaug(object):
                 return False
         return True
 
+    @staticmethod
+    def cut_unsorted_points(lanes):
+        out_points = []
+        for lane in lanes:
+            out_points.append([])
+            prev_y = 1e8
+            for x, y in zip(lane[0::2], lane[1::2]):
+                if y < prev_y:
+                    out_points[-1].extend([x, y])
+                    prev_y = y
+                else:
+                    continue
+        return out_points
+
     def __call__(self, data):
         data_org = copy.deepcopy(data)
         for i in range(30):
@@ -90,6 +105,12 @@ class Alaug(object):
             if self.is_sorted(data_aug['gt_points']):
                 return data_aug
             data = copy.deepcopy(data_org)
+        if self.cut_unsorted:
+            # avoid lane sampling errors for sharp curve lanes
+            data_aug["gt_points"] = self.cut_unsorted_points(
+                data_aug["gt_points"]
+            )
+            return data_aug
         raise ValueError("lane augmentation failed 30 times. modifying GT..")
 
     def aug(self, data):

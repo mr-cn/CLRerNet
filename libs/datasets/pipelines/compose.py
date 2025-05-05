@@ -18,7 +18,7 @@ class Compose(object):
         for transform in transforms:
             if isinstance(transform, dict):
                 if transform['type'] == 'albumentation':
-                    transform = Alaug(transform['pipelines'])
+                    transform = Alaug(transform['pipelines'], cut_unsorted=transform["cut_unsorted"])
                 else:
                     transform = TRANSFORMS.build(transform)
                 self.transforms.append(transform)
