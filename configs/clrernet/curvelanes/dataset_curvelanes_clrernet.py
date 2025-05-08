@@ -1,11 +1,5 @@
-"""
-    config file of the CULane dataset for CondLaneNet
-    Adapted from:
-    https://github.com/aliyun/conditional-lane-detection/blob/master/configs/condlanenet/curvelanes/curvelanes_medium_train.py
-"""
-
 dataset_type = "CurvelanesDataset"
-data_root = "dataset/curvelanes"
+data_root = "dataset/Curvelanes"
 img_scale = (800, 320)
 
 img_norm_cfg = dict(
@@ -75,18 +69,11 @@ val_al_pipeline = [
 train_pipeline = [
     dict(type="albumentation", pipelines=train_al_pipeline, cut_unsorted=True),
     dict(type="Normalize", **img_norm_cfg),
-    dict(type="DefaultFormatBundle"),
     dict(
-        type="CollectCLRNet",
-        max_lanes=16,
-        keys=["img"],
+        type="PackCLRNetInputs",
         meta_keys=[
             "filename",
             "sub_img_name",
-            "ori_shape",
-            "eval_shape",
-            "img_shape",
-            "img_norm_cfg",
             "ori_shape",
             "img_shape",
             "gt_points",
@@ -99,49 +86,75 @@ train_pipeline = [
 val_pipeline = [
     dict(type="albumentation", pipelines=val_al_pipeline, cut_unsorted=False),
     dict(type="Normalize", **img_norm_cfg),
-    dict(type="DefaultFormatBundle"),
     dict(
-        type="CollectCLRNet",
-        max_lanes=16,
-        keys=["img"],
+        type="PackCLRNetInputs",
         meta_keys=[
             "filename",
             "sub_img_name",
             "ori_shape",
             "img_shape",
-            "img_norm_cfg",
-            "ori_shape",
-            "img_shape",
-            "gt_points",
-            "crop_shape",
-            "crop_offset",
         ],
     ),
 ]
 
-data = dict(
-    samples_per_gpu=32,  # medium
-    workers_per_gpu=8,
-    train=dict(
+# 添加dataloader配置
+train_dataloader = dict(
+    batch_size=32,
+    num_workers=8,
+    persistent_workers=True,
+    sampler=dict(type='DefaultSampler', shuffle=True),
+    dataset=dict(
         type=dataset_type,
-        data_root=data_root + "/train/",
+        data_root=data_root,
         data_list=data_root + "/train/train_seg.txt",
-        diff_thr=0,
+        img_prefix=data_root + "/train",
         pipeline=train_pipeline,
         test_mode=False,
-    ),
-    val=dict(
+    )
+)
+
+val_dataloader = dict(
+    batch_size=32,
+    num_workers=8,
+    persistent_workers=True,
+    drop_last=False,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(
         type=dataset_type,
-        data_root=data_root + "/valid/",
+        data_root=data_root,
         data_list=data_root + "/valid/valid.txt",
-        pipeline=val_pipeline,
-        test_mode=True,
-    ),
-    test=dict(
-        type=dataset_type,
-        data_root=data_root + "/valid/",
-        data_list=data_root + "/valid/valid.txt",
+        img_prefix=data_root + "/valid",
         pipeline=val_pipeline,
         test_mode=True,
     ),
 )
+
+test_dataloader = dict(
+    batch_size=32,
+    num_workers=8,
+    persistent_workers=True,
+    drop_last=False,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(
+        type=dataset_type,
+        data_root=data_root,
+        data_list=data_root + "/valid/valid.txt",
+        img_prefix=data_root + "/valid",
+        pipeline=val_pipeline,
+        test_mode=True,
+    ),
+)
+
+# 添加evaluator配置
+val_evaluator = dict(
+    type='CULaneMetric',
+    data_root=data_root,
+    data_list=data_root + "/valid/valid.txt",
+)
+
+test_evaluator = dict(
+    type='CULaneMetric',
+    data_root=data_root,
+    data_list=data_root + "/valid/valid.txt",
+)
+

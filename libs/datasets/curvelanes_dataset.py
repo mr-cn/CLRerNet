@@ -6,15 +6,55 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from mmdet.datasets.builder import DATASETS
+from mmdet.registry import DATASETS
 from tqdm import tqdm
-from vega.metrics.pytorch.lane_metric import LaneMetricCore
+from libs.datasets.metrics.culane_metric import CULaneMetric
 
 from .culane_dataset import CulaneDataset
 
 
-@DATASETS.register_module
+@DATASETS.register_module()
 class CurvelanesDataset(CulaneDataset):
+    def __init__(
+        self,
+        data_root,
+        data_list,
+        pipeline,
+        diff_file=None,
+        diff_thr=15,
+        test_mode=True,
+        y_step=2,
+        img_prefix=None,
+        **kwargs
+    ):
+        """
+        Args:
+            data_root (str): Dataset root path.
+            data_list (str): Dataset list file path.
+            pipeline (List[mmcv.utils.config.ConfigDict]):
+                Data transformation pipeline configs.
+            test_mode (bool): Test flag.
+            y_step (int): Row interval (in the original image's y scale) to sample
+                the predicted lanes for evaluation.
+            img_prefix (str, optional): The prefix of image path. If provided, it will override data_root.
+        """
+        # 首先调用父类的初始化方法
+        super(CurvelanesDataset, self).__init__(
+            data_root=data_root,
+            data_list=data_list,
+            pipeline=pipeline,
+            diff_file=diff_file,
+            diff_thr=diff_thr,
+            test_mode=test_mode,
+            y_step=y_step,
+            **kwargs
+        )
+        
+        # 如果提供了img_prefix，则覆盖原来的img_prefix
+        if img_prefix is not None:
+            self.img_prefix = img_prefix
+            print(f"Using custom img_prefix: {self.img_prefix}")
+
     def prepare_train_img(self, idx):
         """
         Read and process the image through the transform pipeline for training.
@@ -82,9 +122,19 @@ class CurvelanesDataset(CulaneDataset):
             dict: Pipeline results containing
                 'img' and 'img_meta' data containers.
         """
-        imgname = str(Path(self.img_prefix) / self.img_infos[idx])
-        sub_img_name = self.img_infos[idx]
+        # 处理图像路径，确保正确加载图像
+        img_info = self.img_infos[idx]
+        imgname = str(Path(self.img_prefix) / img_info)
+        sub_img_name = img_info
+        
+        # 尝试加载图像
         img_tmp = cv2.imread(imgname)
+        
+        # 如果加载失败，打印错误信息并返回None
+        if img_tmp is None:
+            print(f"错误: 无法加载图像 {imgname}")
+            return None
+            
         ori_shape = img_tmp.shape
 
         if ori_shape == (1440, 2560, 3):
@@ -102,8 +152,9 @@ class CurvelanesDataset(CulaneDataset):
             img[:352, :, :] = img_tmp[368:, ...]
             crop_shape = (352, 1280, 3)
             crop_offset = [0, 368]
-
         else:
+            # 打印未知形状信息便于调试
+            print(f"警告: 未知图像形状 {ori_shape} for {imgname}")
             return None
 
         results = dict(
@@ -173,23 +224,24 @@ class CurvelanesDataset(CulaneDataset):
                 F1, precision, recall, etc. on the specified IoU thresholds.
 
         """
-        evaluator = LaneMetricCore(
-            eval_width=eval_width,
-            eval_height=eval_height,
-            iou_thresh=iou_thresh,
-            lane_width=lane_width,
-        )
-        evaluator.reset()
+        metric_core = CULaneMetric(data_root='', data_list='', y_step=5,
+            iou_thresholds=[iou_thresh], width=lane_width)
         for result in tqdm(results):
             ori_shape = result["meta"]["ori_shape"]
             filename = result["meta"]["filename"]
             pred = self.convert_coords_laneatt(result["result"], ori_shape)
-            anno = self.parse_anno(filename)
-            gt_wh = dict(height=ori_shape[0], width=ori_shape[1])
-            predict_spec = dict(Lines=pred, Shape=gt_wh)
-            target_spec = dict(Lines=anno, Shape=gt_wh)
-            evaluator(target_spec, predict_spec)
-        result_dict = evaluator.summary()
+            anno = self.parse_anno(filename, formal=False)
+            
+            # 转换预测结果为CULaneMetric需要的格式
+            pred_lanes = [[[coord['x'], coord['y']] for coord in lane] for lane in pred]
+            anno_lanes = [[(x, y) for x, y in lane] for lane in anno]
+            
+            metric_core.process({}, [{
+                'lanes': pred_lanes,
+                'metainfo': {'sub_img_name': filename.split('/')[-1]}
+            }])
+
+        result_dict = metric_core.compute_metrics(metric_core.results)
         print(result_dict)
         return result_dict
 
@@ -210,3 +262,35 @@ class CurvelanesDataset(CulaneDataset):
                 lane_coords.append({"x": x, "y": y})
             out.append(lane_coords)
         return out
+
+    def load_labels(self, idx, offset_y=0):
+        """
+        重写load_labels方法以处理偏移和图像路径问题
+        Args:
+            idx (int): Data index.
+            offset_y (int): Y轴偏移量.
+        Returns:
+            List[list]: list of lane point lists.
+            list: class id (=1) for lane instances.
+            list: instance id (start from 1) for lane instances.
+        """
+        if not self.test_mode and len(self.annotations) > idx:
+            anno_dir = str(Path(self.img_prefix).joinpath(self.annotations[idx]))
+            shapes = []
+            with open(anno_dir, "r") as anno_f:
+                lines = anno_f.readlines()
+                for line in lines:
+                    coords = []
+                    coords_str = line.strip().split(" ")
+                    for i in range(len(coords_str) // 2):
+                        coord_x = float(coords_str[2 * i])
+                        coord_y = float(coords_str[2 * i + 1]) + offset_y
+                        coords.append(coord_x)
+                        coords.append(coord_y)
+                    if len(coords) > 3:
+                        shapes.append(coords)
+            id_classes = [1 for i in range(len(shapes))]
+            id_instances = [i + 1 for i in range(len(shapes))]
+            return shapes, id_classes, id_instances
+        else:
+            return [], [], []

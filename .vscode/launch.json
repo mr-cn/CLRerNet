@@ -1,0 +1,66 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "CULane Test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/test.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+            },
+            "args": [
+                "configs/clrernet/culane/clrernet_culane_dla34_ema.py",
+                "clrernet_culane_dla34_ema.pth"
+            ]
+        },
+        {
+            "name": "CULane Train",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/train.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+            },
+            "args": [
+                "configs/clrernet/culane/clrernet_culane_dla34.py"
+            ]
+        },
+        {
+            "name": "Curvelanes Test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/test.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+            },
+            "args": [
+                "configs/clrernet/curvelanes/clrernet_curvelanes_dla34.py",
+                "clrernet_culane_dla34_ema.pth"
+            ]
+        },
+        {
+            "name": "Curvelanes Train",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/train.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+            },
+            "args": [
+                "configs/clrernet/curvelanes/clrernet_curvelanes_dla34.py"
+            ]
+        }
+    ]
+}
