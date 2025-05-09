@@ -52,6 +52,7 @@ model = dict(
     ),
     test_cfg=dict(
         conf_threshold=0.42,
+        cut_height=0,
         use_nms=True,
         as_lanes=True,
         nms_thres=15,

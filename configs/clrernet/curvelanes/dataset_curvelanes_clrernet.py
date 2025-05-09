@@ -68,7 +68,7 @@ val_al_pipeline = [
 
 train_pipeline = [
     dict(type="albumentation", pipelines=train_al_pipeline, cut_unsorted=True),
-    dict(type="Normalize", **img_norm_cfg),
+    # dict(type="Normalize", **img_norm_cfg),
     dict(
         type="PackCLRNetInputs",
         meta_keys=[
@@ -85,7 +85,7 @@ train_pipeline = [
 
 val_pipeline = [
     dict(type="albumentation", pipelines=val_al_pipeline, cut_unsorted=False),
-    dict(type="Normalize", **img_norm_cfg),
+    # dict(type="Normalize", **img_norm_cfg),
     dict(
         type="PackCLRNetInputs",
         meta_keys=[
@@ -147,14 +147,14 @@ test_dataloader = dict(
 
 # 添加evaluator配置
 val_evaluator = dict(
-    type='CULaneMetric',
-    data_root=data_root,
+    type='CurvelanesMetric',
+    data_root=data_root + "/valid",
     data_list=data_root + "/valid/valid.txt",
 )
 
 test_evaluator = dict(
-    type='CULaneMetric',
-    data_root=data_root,
+    type='CurvelanesMetric',
+    data_root=data_root + "/valid",
     data_list=data_root + "/valid/valid.txt",
 )
 

@@ -3,6 +3,8 @@ Adapted from:
 https://github.com/aliyun/conditional-lane-detection/blob/master/mmdet/datasets/curvelanes_dataset.py
 """
 from pathlib import Path
+import json
+import os
 
 import cv2
 import numpy as np
@@ -182,21 +184,29 @@ class CurvelanesDataset(CulaneDataset):
         return res
 
     def parse_anno(self, filename, formal=True):
-        anno_dir = filename.replace(".jpg", ".lines.txt")
+        anno_dir = filename.replace(".jpg", ".lines.json")
         annos = []
-        with open(anno_dir, "r") as anno_f:
-            lines = anno_f.readlines()
-        for line in lines:
-            coords = []
-            numbers = line.strip().split(" ")
-            coords_tmp = [float(n) for n in numbers]
-
-            for i in range(len(coords_tmp) // 2):
-                coords.append((coords_tmp[2 * i], coords_tmp[2 * i + 1]))
-            annos.append(coords)
-        if formal:
-            annos = self.convert_coords_formal(annos)
-        return annos
+        try:
+            with open(anno_dir, "r") as anno_f:
+                json_data = json.load(anno_f)
+                lanes = json_data.get("Lines", [])
+                
+                for lane in lanes:
+                    coords = []
+                    for point in lane:
+                        x = float(point["x"])
+                        y = float(point["y"])
+                        coords.append((x, y))
+                    
+                    if len(coords) >= 2:  # 至少需要两个点才是有效车道
+                        annos.append(coords)
+            
+            if formal:
+                annos = self.convert_coords_formal(annos)
+            return annos
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"读取标注文件错误 {anno_dir}: {e}")
+            return []
 
     def evaluate(
         self,
@@ -224,23 +234,39 @@ class CurvelanesDataset(CulaneDataset):
                 F1, precision, recall, etc. on the specified IoU thresholds.
 
         """
-        metric_core = CULaneMetric(data_root='', data_list='', y_step=5,
-            iou_thresholds=[iou_thresh], width=lane_width)
+        from libs.datasets.metrics.curvelanes_metric import CurvelanesMetric
+        
+        # 使用正确的CurvelanesMetric类和现有属性
+        metric_core = CurvelanesMetric(
+            data_root=self.img_prefix, 
+            data_list='',  # 使用空字符串，CurvelanesMetric会处理这种情况
+            y_step=5
+        )
+        
+        # 初始化结果列表
+        metric_core.results = []
+        
         for result in tqdm(results):
             ori_shape = result["meta"]["ori_shape"]
             filename = result["meta"]["filename"]
+            sub_img_name = filename.split('/')[-1]
+            
+            # 获取预测车道
             pred = self.convert_coords_laneatt(result["result"], ori_shape)
-            anno = self.parse_anno(filename, formal=False)
             
-            # 转换预测结果为CULaneMetric需要的格式
+            # 转换预测结果为需要的格式
             pred_lanes = [[[coord['x'], coord['y']] for coord in lane] for lane in pred]
-            anno_lanes = [[(x, y) for x, y in lane] for lane in anno]
             
-            metric_core.process({}, [{
+            # 创建数据样本
+            data_sample = {
                 'lanes': pred_lanes,
-                'metainfo': {'sub_img_name': filename.split('/')[-1]}
-            }])
+                'metainfo': {'sub_img_name': sub_img_name}
+            }
+            
+            # 处理结果
+            metric_core.process({}, [data_sample])
 
+        # 计算指标
         result_dict = metric_core.compute_metrics(metric_core.results)
         print(result_dict)
         return result_dict

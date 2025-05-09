@@ -34,6 +34,23 @@
             ]
         },
         {
+            "name": "Predict on Curvelanes",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "demo/image_demo.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+            },
+            "args": [
+                "demo/demo.jpg",
+                "configs/clrernet/curvelanes/clrernet_curvelanes_dla34.py",
+                "clrernet_culane_dla34_ema.pth",
+                "--out-file=demo/result.png"
+            ]
+        },
+        {
             "name": "Curvelanes Test",
             "type": "debugpy",
             "request": "launch",
