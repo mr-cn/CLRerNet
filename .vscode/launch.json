@@ -30,11 +30,25 @@
                 "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
             },
             "args": [
-                "configs/clrernet/culane/clrernet_culane_dla34.py"
+                "configs/clrernet/culane/clrernet_culane_dla34_ema.py"
             ]
         },
         {
-            "name": "Predict on Curvelanes",
+            "name": "CULane Train - Generate diff",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/calculate_frame_diff.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+            },
+            "args": [
+                "dataset/culane"
+            ]
+        },
+        {
+            "name": "CULane Predict",
             "type": "debugpy",
             "request": "launch",
             "program": "demo/image_demo.py",
@@ -45,9 +59,25 @@
             },
             "args": [
                 "demo/demo.jpg",
-                "configs/clrernet/curvelanes/clrernet_curvelanes_dla34.py",
+                "configs/clrernet/culane/clrernet_culane_dla34_ema.py",
                 "clrernet_culane_dla34_ema.pth",
-                "--out-file=demo/result.png"
+                "--out-file=demo/output_culane/predict.png"
+            ]
+        },
+        {
+            "name": "CULane Pipeline",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "demo/show_pipeline.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+            },
+            "args": [
+                "demo/demo.jpg",
+                "configs/clrernet/culane/clrernet_culane_dla34_ema.py",
+                "demo/output_culane"
             ]
         },
         {
@@ -66,6 +96,23 @@
             ]
         },
         {
+            "name": "Curvelanes Predict",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "demo/image_demo.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+            },
+            "args": [
+                "demo/demo.jpg",
+                "configs/clrernet/curvelanes/clrernet_curvelanes_dla34.py",
+                "clrernet_culane_dla34_ema.pth",
+                "--out-file=demo/output_curvelanes/predict.png"
+            ]
+        },
+        {
             "name": "Curvelanes Train",
             "type": "debugpy",
             "request": "launch",
@@ -78,6 +125,22 @@
             "args": [
                 "configs/clrernet/curvelanes/clrernet_curvelanes_dla34.py"
             ]
-        }
+        },
+        {
+            "name": "Curvelanes Pipeline",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "demo/show_pipeline.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+            },
+            "args": [
+                "demo/demo.jpg",
+                "configs/clrernet/curvelanes/clrernet_curvelanes_dla34.py",
+                "demo/output_curvelanes"
+            ]
+        },
     ]
 }
