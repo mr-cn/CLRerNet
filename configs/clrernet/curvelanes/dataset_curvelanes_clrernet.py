@@ -1,5 +1,6 @@
 dataset_type = "CurvelanesDataset"
 data_root = "dataset/Curvelanes"
+crop_bbox = [0, 270, 1640, 590]
 img_scale = (800, 320)
 
 img_norm_cfg = dict(
@@ -63,6 +64,14 @@ train_al_pipeline = [
 
 val_al_pipeline = [
     dict(type="Compose", params=compose_cfg),
+    # dict(
+    #     type="Crop",
+    #     x_min=crop_bbox[0],
+    #     x_max=crop_bbox[2],
+    #     y_min=crop_bbox[1],
+    #     y_max=crop_bbox[3],
+    #     p=1,
+    # ),
     dict(type="Resize", height=img_scale[1], width=img_scale[0], p=1),
 ]
 
@@ -84,7 +93,7 @@ train_pipeline = [
 ]
 
 val_pipeline = [
-    dict(type="albumentation", pipelines=val_al_pipeline, cut_unsorted=False),
+    dict(type="albumentation", pipelines=val_al_pipeline),
     # dict(type="Normalize", **img_norm_cfg),
     dict(
         type="PackCLRNetInputs",

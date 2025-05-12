@@ -88,8 +88,10 @@ class CurvelanesMetric(BaseMetric):
                 ys = np.linspace(0, self.ori_h-1, num=20)
                 xs = lane(ys/self.ori_h) * self.ori_w
                 valid = (xs >= 0) & (xs < self.ori_w)
+                
                 points = [{"x": float(x), "y": float(y)} 
-                         for x, y in zip(xs[valid], ys[valid]) if valid]
+                         for x, y in zip(xs[valid], ys[valid])]
+                
                 if len(points) >= 2:
                     lanes_json["Lines"].append(points)
             
@@ -200,7 +202,8 @@ class CurvelanesMetric(BaseMetric):
                 y = int(np.clip(p['y'], 0, h-1))
                 pts.append((x, y))
             if len(pts) >= 2:
-                cv2.polylines(img, [np.array(pts)], False, 255, self.lane_width)
+                # 对于单通道图像，颜色是一个标量值
+                cv2.polylines(img, [np.array(pts, dtype=np.int32)], False, 255, self.lane_width)
         
         draw_lane(img1, lane1)
         draw_lane(img2, lane2)
